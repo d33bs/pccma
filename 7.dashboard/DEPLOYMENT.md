@@ -10,8 +10,11 @@ https://d33bs.github.io/pccma/
 ```
 
 No upstream merge or generated-image Git commits are required for this example.
-The fork uses Actions-based Pages, allows `main` and `add_object_image_crops` in
-its `github-pages` environment, and requires no deployment approval. Upstream
+The fork's default branch is `add_object_image_crops`, so its unmerged dashboard
+and workflow are discoverable immediately; neither upstream nor the fork's
+`main` branch is advanced to publish the example. The fork uses Actions-based
+Pages, allows `main` and `add_object_image_crops` in its `github-pages`
+environment, and requires no deployment approval. Upstream
 `WayScience/pccma` remains restricted to deployment from `main`; pull requests
 cannot deploy either site. The shared public data release is checksum-pinned
 and reused, not duplicated into the fork.
