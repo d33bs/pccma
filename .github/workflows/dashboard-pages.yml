@@ -7,7 +7,7 @@ name: Dashboard Pages
       - "7.dashboard/**"
       - ".github/workflows/dashboard-pages.yml"
   push:
-    branches: [main]
+    branches: [main, add_object_image_crops]
     paths:
       - "7.dashboard/**"
       - ".github/workflows/dashboard-pages.yml"
@@ -83,10 +83,34 @@ jobs:
         run: |
           uv run --project 7.dashboard --locked python -m pytest \
             7.dashboard/tests/test_real_bundle.py -q
+      - name: Record publication source
+        run: |
+          uv run --project 7.dashboard --locked python - <<'PY'
+          from datetime import datetime, timezone
+          import json
+          import os
+          from pathlib import Path
+
+          repository = os.environ["GITHUB_REPOSITORY"]
+          branch = os.environ["GITHUB_REF_NAME"]
+          provenance = {
+              "preview": repository == "d33bs/pccma" and branch != "main",
+              "source_repository": repository,
+              "source_branch": branch,
+              "source_commit": os.environ["GITHUB_SHA"],
+              "built_at": datetime.now(timezone.utc).isoformat(),
+              "run_url": (f"{os.environ['GITHUB_SERVER_URL']}/{repository}/actions/runs/"
+                          f"{os.environ['GITHUB_RUN_ID']}"),
+          }
+          Path("7.dashboard/dist/pages/preview.json").write_text(
+              json.dumps(provenance, indent=2) + "\n"
+          )
+          PY
       - name: Upload complete Pages site
         if: >-
-          github.repository == 'WayScience/pccma' &&
-          github.ref == 'refs/heads/main' &&
+          ((github.repository == 'WayScience/pccma' && github.ref == 'refs/heads/main') ||
+           (github.repository == 'd33bs/pccma' &&
+            (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/add_object_image_crops'))) &&
           github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
@@ -97,8 +121,9 @@ jobs:
   deploy:
     name: Deploy dashboard
     if: >-
-      github.repository == 'WayScience/pccma' &&
-      github.ref == 'refs/heads/main' &&
+      ((github.repository == 'WayScience/pccma' && github.ref == 'refs/heads/main') ||
+       (github.repository == 'd33bs/pccma' &&
+        (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/add_object_image_crops'))) &&
       github.event_name != 'pull_request'
     needs: build
     runs-on: ubuntu-24.04

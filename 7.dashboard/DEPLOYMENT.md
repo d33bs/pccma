@@ -1,5 +1,35 @@
 # Deploy the pilot dashboard on merge
 
+## Fork example
+
+The `d33bs/pccma` fork uses the same verified build and publishes dashboard
+changes pushed to `add_object_image_crops` automatically. Its Pages site is:
+
+```text
+https://d33bs.github.io/pccma/
+```
+
+No upstream merge or generated-image Git commits are required for this example.
+The fork uses Actions-based Pages, allows `main` and `add_object_image_crops` in
+its `github-pages` environment, and requires no deployment approval. Upstream
+`WayScience/pccma` remains restricted to deployment from `main`; pull requests
+cannot deploy either site. The shared public data release is checksum-pinned
+and reused, not duplicated into the fork.
+
+The published `preview.json` records the exact source repository, branch,
+commit, build time and Actions run URL. Source pushes automatically rebuild
+from that commit; the source branch and environment policy must both permit
+publication. To refresh the fork example after editing the dashboard:
+
+```bash
+git push fork HEAD:refs/heads/add_object_image_crops
+```
+
+The public pilot input upload and upstream Actions Pages setup described below
+have already been completed. Those instructions are retained for recreating the
+setup or publishing a replacement data snapshot, not as recurring manual work.
+
+
 ## What happens automatically
 
 `.github/workflows/dashboard-pages.yml` runs when dashboard or workflow files
