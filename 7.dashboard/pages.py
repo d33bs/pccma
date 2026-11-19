@@ -31,10 +31,14 @@ import build_report as report
 INPUTS = {
     "umap": "inputs/single_cell_umap_coordinates_by_cancer_group.parquet",
     "crop_index": "inputs/crops_index.parquet",
+    # From 5b.segmentation_outlines's published index (OBJECT_KEY + Nuclei status/X/Y only;
+    # see build_report.py's SEGMENTATION_* columns). Required, like umap/crop_index, so every
+    # pinned archive guarantees outline coverage for its own plotted cells.
+    "segmentation_index": "inputs/segmentation_index.parquet",
     "warehouse": "warehouse",
     "source_hashes": "warehouse/jpg-sha256.txt.gz",
 }
-REQUIRED_FILES = frozenset(INPUTS[key] for key in ("umap", "crop_index", "source_hashes"))
+REQUIRED_FILES = frozenset(INPUTS[key] for key in ("umap", "crop_index", "segmentation_index", "source_hashes"))
 MAX_EXPANDED_BYTES = 950_000_000
 MAX_MEMBERS = 60_000
 CHUNK = 1024 * 1024
@@ -163,9 +167,10 @@ def _member_name(name):
     raise ValueError(f"Unexpected archive member: {name}")
 
 
-def _selection(umap, crop_index, warehouse, *, plate, run_id):
+def _selection(umap, crop_index, segmentation_index, warehouse, *, plate, run_id):
     payload = report.prepare_data(pd.read_parquet(umap), pd.read_parquet(crop_index),
-                                  plate=plate, run_id=run_id)
+                                  plate=plate, run_id=run_id,
+                                  segmentation=pd.read_parquet(segmentation_index))
     selected = {}
     for point in payload["points"]:
         if set(point["images"]) != set(report.CHANNELS):
@@ -305,19 +310,20 @@ def _public_parquet(path, columns, work):
     return target, omitted
 
 
-def package(*, umap, crop_index, warehouse, source_hashes, plate, run_id, output):
+def package(*, umap, crop_index, segmentation_index, warehouse, source_hashes, plate, run_id, output):
     """Package public build inputs, verifying original images and unchanged report values."""
     _identifier(plate, "plate")
     _identifier(run_id, "run_id")
     output = _new_output(output)
     sources = {INPUTS["umap"]: _regular(umap), INPUTS["crop_index"]: _regular(crop_index),
+               INPUTS["segmentation_index"]: _regular(segmentation_index),
                INPUTS["source_hashes"]: _regular(source_hashes)}
     for name, path in sources.items():
         if path.name != Path(name).name:
             raise ValueError(f"Original input basename must be {Path(name).name}; got {path.name}")
     original = {name: {"bytes": path.stat().st_size, "sha256": report.sha256(path)}
                 for name, path in sources.items()}
-    payload, selected = _selection(umap, crop_index, warehouse, plate=plate, run_id=run_id)
+    payload, selected = _selection(umap, crop_index, segmentation_index, warehouse, plate=plate, run_id=run_id)
     hashes = _verify_jpegs(selected, source_hashes)
     sources.update(selected)
     metadata = dict(original)
@@ -330,13 +336,15 @@ def package(*, umap, crop_index, warehouse, source_hashes, plate, run_id, output
         for name, expected in original.items():
             if report.sha256(sources[name]) != expected["sha256"]:
                 raise ValueError(f"Source changed during packaging: {name}")
+        common = report.POSITION_KEY + ["Metadata_cell_line", "Metadata_time_point"]
         # These are the exact report-required columns, retaining all rows and
         # unrounded values but never unused absolute TIFF source directories.
-        common = report.POSITION_KEY + ["Metadata_cell_line", "Metadata_time_point"]
         columns = {
             "umap": common + ["cancer_group", "tissue_site", "umap_1", "umap_2", "cluster"],
             "crop_index": list(dict.fromkeys(common + report.OBJECT_KEY +
                            list(report.PATH_COLUMNS.values()) + ["Metadata_Nucleocentric_Crop_Size"])),
+            "segmentation_index": report.OBJECT_KEY + [report.SEGMENTATION_STATUS_COLUMN,
+                                  report.SEGMENTATION_X_COLUMN, report.SEGMENTATION_Y_COLUMN],
         }
         archive_sources = dict(sources)
         for key, required in columns.items():
@@ -346,7 +354,8 @@ def package(*, umap, crop_index, warehouse, source_hashes, plate, run_id, output
             metadata[name] = {"bytes": path.stat().st_size, "sha256": report.sha256(path)}
         checked = report.prepare_data(pd.read_parquet(archive_sources[INPUTS["umap"]]),
                                       pd.read_parquet(archive_sources[INPUTS["crop_index"]]),
-                                      plate=plate, run_id=run_id)
+                                      plate=plate, run_id=run_id,
+                                      segmentation=pd.read_parquet(archive_sources[INPUTS["segmentation_index"]]))
         if checked != payload:
             raise ValueError("Public input projection changed report values or scope")
         if len(sources) > MAX_MEMBERS or sum(m["bytes"] for m in metadata.values()) > MAX_EXPANDED_BYTES:
@@ -476,9 +485,10 @@ def build(*, config, inputs, output):
     output = _new_output(output)
     root, files = _input_tree(inputs)
     umap, crop_index = root / INPUTS["umap"], root / INPUTS["crop_index"]
+    segmentation_index = root / INPUTS["segmentation_index"]
     source_hashes = root / INPUTS["source_hashes"]
     original = {name: report.sha256(root / name) for name in REQUIRED_FILES}
-    payload, selected = _selection(umap, crop_index, root / INPUTS["warehouse"],
+    payload, selected = _selection(umap, crop_index, segmentation_index, root / INPUTS["warehouse"],
                                    plate=config["plate"], run_id=config["run_id"])
     counts = {"cells": len(payload["points"]), "assets": len(selected)}
     if counts != config["expected"]:
@@ -491,7 +501,8 @@ def build(*, config, inputs, output):
         site = work / "site"
         built = report.build_report(umap_path=umap, index_path=crop_index,
                                     warehouse=root / INPUTS["warehouse"], output=site,
-                                    plate=config["plate"], run_id=config["run_id"])
+                                    plate=config["plate"], run_id=config["run_id"],
+                                    segmentation_index_path=segmentation_index)
         if built["points"] != payload["points"] or built["summary"] != payload["summary"]:
             raise ValueError("Prepared scope changed during report build")
         manifest = json.loads((site / "manifest.json").read_text())
@@ -501,7 +512,7 @@ def build(*, config, inputs, output):
         for name, digest in original.items():
             if report.sha256(root / name) != digest:
                 raise ValueError("Original inputs changed during build")
-        for label in ("umap", "crop_index"):
+        for label in ("umap", "crop_index", "segmentation_index"):
             if built["sources"][label]["sha256"] != original[INPUTS[label]]:
                 raise ValueError("Original input source hash was not preserved")
         _publish_directory(site, output)
@@ -515,7 +526,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
     packing = commands.add_parser("package", help="Package only original plotted pilot inputs")
-    for option in ("umap", "crop-index", "warehouse", "source-hashes", "output"):
+    for option in ("umap", "crop-index", "segmentation-index", "warehouse", "source-hashes", "output"):
         packing.add_argument(f"--{option}", type=Path, required=True)
     for option in ("plate", "run-id"):
         packing.add_argument(f"--{option}", required=True)

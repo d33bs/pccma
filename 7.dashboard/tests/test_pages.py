@@ -64,6 +64,16 @@ def pilot(tmp_path):
     index_path = source / Path(pages.INPUTS["crop_index"]).name
     umap.to_parquet(umap_path)
     index.to_parquet(index_path)
+    # Segmentation coverage is only required for cells that actually reach the UMAP-matched
+    # join (the plotted "row", not the unplotted cell) -- see build_report.prepare_data.
+    segmentation = pd.DataFrame([{
+        **{key: row[key] for key in pages.report.OBJECT_KEY},
+        pages.report.SEGMENTATION_STATUS_COLUMN: "ok",
+        pages.report.SEGMENTATION_X_COLUMN: [1.0, 2.0, 2.0, 1.0, 1.0],
+        pages.report.SEGMENTATION_Y_COLUMN: [1.0, 1.0, 2.0, 2.0, 1.0],
+    }])
+    segmentation_path = source / Path(pages.INPUTS["segmentation_index"]).name
+    segmentation.to_parquet(segmentation_path)
     hashes = warehouse / "jpg-sha256.txt.gz"
     lines = [f"{digest(warehouse / row[column])}  {row[column]}\n"
              for column in pages.report.PATH_COLUMNS.values()]
@@ -73,8 +83,9 @@ def pilot(tmp_path):
     # Old generated results are irrelevant and must never enter the archive.
     (warehouse / "old-index.html").write_text("do not publish")
     (warehouse / "old.duckdb").write_bytes(b"not an input")
-    return {"umap": umap_path, "crop_index": index_path, "warehouse": warehouse,
-            "source_hashes": hashes, "plate": PLATE, "run_id": RUN, "output": tmp_path / "pilot-inputs.tar.gz"}
+    return {"umap": umap_path, "crop_index": index_path, "segmentation_index": segmentation_path,
+            "warehouse": warehouse, "source_hashes": hashes, "plate": PLATE, "run_id": RUN,
+            "output": tmp_path / "pilot-inputs.tar.gz"}
 
 
 def make_config(tmp_path, archive, *, expected=None):
@@ -117,7 +128,7 @@ def test_real_cli_package_stage_build_uses_current_web_and_original_sources(pilo
     descriptor = run_cli(DASHBOARD / "pages.py", ["package", *sum(
         (["--" + key.replace("_", "-"), value] for key, value in pilot.items()), [])], tmp_path)
     assert descriptor["expected"] == {"cells": 1, "assets": 6}
-    assert descriptor["members"] == 9
+    assert descriptor["members"] == 10
     assert descriptor["archive"] == {"sha256": digest(pilot["output"]), "bytes": pilot["output"].stat().st_size}
     assert descriptor["inputs"] == pages.INPUTS
     assert descriptor["summary"]["excluded_umap_rows"] == 1
@@ -126,8 +137,8 @@ def test_real_cli_package_stage_build_uses_current_web_and_original_sources(pilo
     extracted = tmp_path / "staged inputs"
     stage_metadata = run_cli(DASHBOARD / "pages.py", ["stage", "--config", config,
                              "--archive", pilot["output"], "--output", extracted], tmp_path)
-    assert stage_metadata["members"] == 9
-    for key in ("umap", "crop_index", "source_hashes"):
+    assert stage_metadata["members"] == 10
+    for key in ("umap", "crop_index", "segmentation_index", "source_hashes"):
         assert (extracted / pages.INPUTS[key]).read_bytes() == pilot[key].read_bytes()
     # Build from a fresh copy of current source; modify web AFTER packaging.
     # No writes to the repository's web files or real distribution directories.
@@ -148,7 +159,7 @@ def test_real_cli_package_stage_build_uses_current_web_and_original_sources(pilo
     assert result["catalog"]["status"] == "bundled"
     manifest = json.loads((site / "manifest.json").read_text())
     assert manifest["code_sha256"]["app.js"] == digest(checkout / "web/app.js")
-    for label in ("umap", "crop_index"):
+    for label in ("umap", "crop_index", "segmentation_index"):
         assert manifest["sources"][label] == {"name": pilot[label].name, "sha256": digest(pilot[label])}
     for asset in manifest["assets"]:
         original = pilot["warehouse"] / asset["path"].removeprefix("assets/")
@@ -209,7 +220,7 @@ def test_archive_is_deterministic_sorted_regular_only_and_byte_verified(packed, 
         members = archive.getmembers()
         names = [m.name for m in members]
         assert names == sorted(names)
-        assert len(names) == len(set(names)) == 9
+        assert len(names) == len(set(names)) == 10
         assert set(names) == pages.REQUIRED_FILES | {
             "warehouse/" + str(p.relative_to(pilot["warehouse"])) for p in pilot["warehouse"].rglob("*.jpg")}
         for member in members:
@@ -219,6 +230,7 @@ def test_archive_is_deterministic_sorted_regular_only_and_byte_verified(packed, 
             assert member.mode == 0o644
             assert archive.extractfile(member).read() == (
                 pilot[{pages.INPUTS["umap"]: "umap", pages.INPUTS["crop_index"]: "crop_index",
+                       pages.INPUTS["segmentation_index"]: "segmentation_index",
                        pages.INPUTS["source_hashes"]: "source_hashes"}[member.name]].read_bytes()
                 if member.name in pages.REQUIRED_FILES else
                 (pilot["warehouse"] / member.name.removeprefix("warehouse/")).read_bytes())
@@ -492,7 +504,7 @@ def test_streamed_network_download_retries_twice_and_checks_redirects(packed, tm
 
     monkeypatch.setattr(pages, "build_opener", lambda handler: Opener())
     result = pages.stage(config=config, output=tmp_path / "network-stage")
-    assert result["members"] == 9
+    assert result["members"] == 10
     assert len(calls) == 3
     assert all(call == ("https://example.invalid/pilot-inputs.tar.gz", 30, "identity") for call in calls)
     assert reads and all(0 < size <= pages.CHUNK for size in reads)
@@ -670,5 +682,5 @@ def test_download_retries_after_partial_stream_without_reusing_bytes(packed, tmp
     output = tmp_path / "retried-stage"
     result = pages.stage(config=config, output=output)
     assert len(attempts) == 3
-    assert result["members"] == 9
+    assert result["members"] == 10
     assert (output / pages.INPUTS["umap"]).read_bytes() == pilot["umap"].read_bytes()
