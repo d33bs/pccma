@@ -151,6 +151,47 @@ test('channel mix slot mixes grayscale layers, rejects incomplete selections and
   await Promise.resolve(); await Promise.resolve();
   assert.match(container.children[0].textContent, /Select at least one/);
 });
+test('a provided nucleus outline is stroked onto the mix canvas in its own pixel space', async () => {
+  const requested = [];
+  function makeElement(tag) {
+    const element = { tagName: tag, textContent: '', attrs: {} };
+    element.setAttribute = (key, value) => { element.attrs[key] = String(value); };
+    element.getAttribute = key => element.attrs[key];
+    if (tag === 'img') Object.defineProperty(element, 'src', { set(value) { requested.push(element); element.url = value; } });
+    if (tag === 'canvas') {
+      const calls = [];
+      element.getContext = () => new Proxy({}, {
+        get: (target, key) => {
+          if (key === '__calls') return calls;
+          if (key in target) return target[key];
+          return (...args) => calls.push([key, ...args]);
+        },
+        set: (target, key, value) => { target[key] = value; calls.push(['set:' + key, value]); return true; },
+      });
+    }
+    return element;
+  }
+  const document = { createElement: makeElement };
+  const container = { children: [], replaceChildren(...children) { this.children = children; } };
+  const update = app.createChannelMixSlot(document, container);
+  update({ type: 'mix', layers: [{ path: 'assets/crops/a.DNA.jpg', color: '#4d7cff' }],
+    outline: { x: [10, 20, 20, 10, 10], y: [10, 10, 20, 20, 10] } }, 'DNA + outline');
+  requested[0].onload();
+  await Promise.resolve(); await Promise.resolve();
+  const canvas = container.children[0];
+  assert.equal(canvas.tagName, 'canvas');
+  const calls = canvas.getContext().__calls;
+  assert.deepEqual(calls.find(call => call[0] === 'moveTo'), ['moveTo', 10, 10]);
+  assert.ok(calls.some(call => call[0] === 'lineTo' && call[1] === 20 && call[2] === 20));
+  assert.ok(calls.some(call => call[0] === 'stroke'));
+  assert.ok(calls.some(call => call[0] === 'set:strokeStyle' && call[1] === '#38e6ff'));
+  // No outline on the descriptor: never stroked at all.
+  update({ type: 'mix', layers: [{ path: 'assets/crops/b.DNA.jpg', color: '#4d7cff' }] }, 'DNA only');
+  requested[1].onload();
+  await Promise.resolve(); await Promise.resolve();
+  const laterCalls = container.children[0].getContext().__calls;
+  assert.ok(!laterCalls.some(call => call[0] === 'stroke'));
+});
 test('static template inlines exactly one of each build placeholder without external dependencies', () => {
   const templatePath = new URL('../web/template.html', import.meta.url);
   assert.ok(existsSync(templatePath), 'template.html must exist');

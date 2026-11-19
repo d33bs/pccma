@@ -1353,6 +1353,46 @@ http = [
 ]
 
 [[package]]
+name = "geoarrow-c"
+version = "0.4.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/85/5a/c4a84ae1a18fb5aa083aa6a084c8c7d53912ef1e517090a729b442ae540f/geoarrow_c-0.4.0.tar.gz", hash = "sha256:7a3fa543a6578ced143e0fddfdf1149188c5f81c54caf2584ac5c3dc025b9f1d", size = 325131, upload-time = "2026-09-29T03:42:35.807Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/0d/74/408695049958ee0a0a70ccca11e9ffef9cbfa9cdb8e778ae40ba5b84aa01/geoarrow_c-0.4.0-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:cbf7c803faad1b3fdd509451c5bce5a458a7f324f7c939979493a77283bf708f", size = 630800, upload-time = "2026-09-29T03:40:42.609Z" },
+    { url = "https://files.pythonhosted.org/packages/06/25/bfc8f96cdec99ed6fdd2955ab017340404e7bfa1e4844426a2e778969ed3/geoarrow_c-0.4.0-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:ce1b319638f3fce3ff2c182bbe0b340455cc7b9c109e343f6e650be1906132e0", size = 621141, upload-time = "2026-09-29T03:40:43.951Z" },
+    { url = "https://files.pythonhosted.org/packages/b2/25/35fc7efdc8dd0e893b0d9c2f3048e63728be6974285b242f69a2f30dcab4/geoarrow_c-0.4.0-cp311-cp311-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:2fe4ac781c37062307261abcf82fb26cc6bc57f77ab26f0f17b18b8c1f240d07", size = 2234143, upload-time = "2026-09-29T03:40:45.494Z" },
+    { url = "https://files.pythonhosted.org/packages/51/24/b330631629cb98916a050186bb5aabd5c7f3f6b8139ba35224b079a1e4d8/geoarrow_c-0.4.0-cp311-cp311-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:6be52607a41e7b2b069460969446d0917f49a2c7d571821e9874a738f6cb8b67", size = 2260850, upload-time = "2026-09-29T03:40:47.296Z" },
+    { url = "https://files.pythonhosted.org/packages/8b/4b/04fe4597a3d67001d6bff0b9672fd58b1efb58fdd8d722ed436fd5252dbf/geoarrow_c-0.4.0-cp311-cp311-musllinux_1_2_aarch64.whl", hash = "sha256:287cb703c6999bbad973bee7175cfba86085b6377f25f9dacdc962b244ce731c", size = 3171537, upload-time = "2026-09-29T03:40:48.799Z" },
+    { url = "https://files.pythonhosted.org/packages/78/28/830ecbcf43dc1555302b446fa552ac6c07c24fbce3bc8d4d217ba8ec4b98/geoarrow_c-0.4.0-cp311-cp311-musllinux_1_2_x86_64.whl", hash = "sha256:3da822f87873efca63f7c2eae193ac18ae5f0ce1430b51b3814b735f3698868c", size = 3266723, upload-time = "2026-09-29T03:40:50.338Z" },
+    { url = "https://files.pythonhosted.org/packages/7c/87/7a9bfdc9e9a571aabf3cea04bfb7f252938cf5a03d8144aad12c6605142d/geoarrow_c-0.4.0-cp311-cp311-win32.whl", hash = "sha256:fe8d70733be9812f381fbc77cb2078aa7df48dedcf1fc017744bb755de856979", size = 473025, upload-time = "2026-09-29T03:40:51.743Z" },
+    { url = "https://files.pythonhosted.org/packages/d5/c3/7e5692c848a938ceb3786864eb8ad209badc93b89b2b7d76e1f6f1b8cb61/geoarrow_c-0.4.0-cp311-cp311-win_amd64.whl", hash = "sha256:770ffe1369d76c29902854c38d5be31281bfa017e90a91e813ba05b15b9ee5a7", size = 502587, upload-time = "2026-09-29T03:40:53.112Z" },
+    { url = "https://files.pythonhosted.org/packages/65/fa/bcbe93308b9135793128406e80f74fd86f907f23fbbfb9e81ef46cf87c34/geoarrow_c-0.4.0-cp311-cp311-win_arm64.whl", hash = "sha256:b3ed079ea6a5662f7997f1a29692fb709ad042083ecc9ad8c7521efb3b1797a1", size = 478352, upload-time = "2026-09-29T03:40:54.759Z" },
+]
+
+[[package]]
+name = "geoarrow-pyarrow"
+version = "0.3.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "geoarrow-c" },
+    { name = "geoarrow-types" },
+    { name = "pyarrow" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/d0/cc/3e68442f995188beae12ccd3849f92a23df60829f0456e63f2a0ed1a8b47/geoarrow_pyarrow-0.3.0.tar.gz", hash = "sha256:8d01902ba83015e7b7286c884c6ee2126d006fdfa8f70bd1c104bf924ef94aa1", size = 34799, upload-time = "2026-09-28T03:21:06.848Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/6d/aa/ad595ff8a2130a70175321e9e67f6a1bab02e4f90356a2e4f1053577359a/geoarrow_pyarrow-0.3.0-py3-none-any.whl", hash = "sha256:accfcaafb5b2914bd2df14e605ea75dc803b6ead5e7308a013fba502392af198", size = 26158, upload-time = "2026-09-28T03:21:05.547Z" },
+]
+
+[[package]]
+name = "geoarrow-types"
+version = "0.4.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/a4/34/750abf44abae8e3ef35ab394e0314050b231a5262b2cedc8ddc86ee76477/geoarrow_types-0.4.1.tar.gz", hash = "sha256:cd51972066d08a3ab2165a049e72a57bc4d5832d774b61b2d33decc1ac552bd8", size = 23978, upload-time = "2026-09-28T03:11:26.96Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/46/79/8f19f1e66b05f38a6895ff5b4efe2bb1c5bca0f8b8687d98a4de490b6367/geoarrow_types-0.4.1-py3-none-any.whl", hash = "sha256:346a386144ccd540a0fd7141b2cb6f2997dbd8850cb5dce91b3006d4989db2e9", size = 18990, upload-time = "2026-09-28T03:11:25.653Z" },
+]
+
+[[package]]
 name = "google-api-core"
 version = "2.42.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2722,6 +2762,8 @@ dependencies = [
     { name = "cytodataframe" },
     { name = "cytotable" },
     { name = "dask", extra = ["dataframe"] },
+    { name = "duckdb" },
+    { name = "geoarrow-pyarrow" },
     { name = "ipykernel" },
     { name = "jupyter" },
     { name = "jupyterlab" },
@@ -2735,9 +2777,11 @@ dependencies = [
     { name = "pyarrow" },
     { name = "pycytominer" },
     { name = "pyyaml" },
+    { name = "scikit-image" },
     { name = "scikit-learn" },
     { name = "scipy" },
     { name = "seaborn" },
+    { name = "shapely" },
     { name = "tabulate" },
     { name = "tifffile" },
     { name = "umap-learn" },
@@ -2749,6 +2793,8 @@ requires-dist = [
     { name = "cytodataframe", specifier = "==0.3.6" },
     { name = "cytotable", specifier = "==1.2.6" },
     { name = "dask", extras = ["dataframe"], specifier = "==2026.8.0" },
+    { name = "duckdb", specifier = "==1.5.6" },
+    { name = "geoarrow-pyarrow", specifier = "==0.3.0" },
     { name = "ipykernel", specifier = "==7.4.0" },
     { name = "jupyter", specifier = "==1.0.0" },
     { name = "jupyterlab", specifier = "==4.6.4" },
@@ -2762,9 +2808,11 @@ requires-dist = [
     { name = "pyarrow", specifier = "==22.0.0" },
     { name = "pycytominer", specifier = "==1.7.1" },
     { name = "pyyaml", specifier = "==6.0.3" },
+    { name = "scikit-image", specifier = "==0.26.0" },
     { name = "scikit-learn", specifier = "==1.9.1" },
     { name = "scipy", specifier = "==1.17.1" },
     { name = "seaborn", specifier = "==0.13.2" },
+    { name = "shapely", specifier = "==2.2.0" },
     { name = "tabulate", specifier = "==0.10.0" },
     { name = "tifffile", specifier = "==2026.3.3" },
     { name = "umap-learn", specifier = "==0.5.12" },
@@ -3676,6 +3724,26 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/6d/44/f5da03a8ef95d369145c5bb53050e7877c9f3d312e128605fd9504829143/setuptools-84.0.0.tar.gz", hash = "sha256:f4695c21257f0d9b537ec2692c941d02ee143b7cc1276941349a546573b2ef73", size = 1168449, upload-time = "2026-08-08T18:27:58.365Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/95/9c/c510029fc6ef33a6275cd2c5d3cecd6613dfd6aa401d57c54f1c18852ccf/setuptools-84.0.0-py3-none-any.whl", hash = "sha256:51a52592b3b99e102b609654876bd65f19f999935166d1352678931132b0c670", size = 818216, upload-time = "2026-08-08T18:27:56.719Z" },
+]
+
+[[package]]
+name = "shapely"
+version = "2.2.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/f3/ab/924b6e202f796d270a3041a230151f7908db5ea48c74effe6f8023e9bd05/shapely-2.2.0.tar.gz", hash = "sha256:e8865e553d874a1ec4a032057ea81fca9def37b188cd8fb550af3b3480b3f88c", size = 380326, upload-time = "2026-10-07T09:18:01.001Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a5/43/11bfb01afed47a77540dc4075c7c9ad1ba6323a698fcdb01795df62f55b2/shapely-2.2.0-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:596b7994ceafa526b6e0522ca29fbc41d19f86459161d6efe1f251d0acd49f3f", size = 1786155, upload-time = "2026-10-07T09:15:56.158Z" },
+    { url = "https://files.pythonhosted.org/packages/55/23/e3502c9312e0cd0dcee9e382ad90d0d3039144015b22de87084be20fffec/shapely-2.2.0-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:7c0b262116bb75b86751440b42e19673911bc0a8f0d5ce723ce294c3d6e4d5c0", size = 1582454, upload-time = "2026-10-07T09:15:58.042Z" },
+    { url = "https://files.pythonhosted.org/packages/11/97/dd0ce3bcc03b317298dec0f66e8b404e50cdb126dcb0a27f1c4801371ba5/shapely-2.2.0-cp311-cp311-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:7765e0e5d51d63eae0a911861cbda87165a01677bc9bce6ed20d06858ccde99f", size = 2184352, upload-time = "2026-10-07T09:15:59.87Z" },
+    { url = "https://files.pythonhosted.org/packages/dc/20/56289b91914b62a0849de3c1efe5f0cfd5b5d7ba168568567900087615be/shapely-2.2.0-cp311-cp311-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:5d61088e2ef71dafad0dd4fae8a521cc1f20da4a89d3096bab5b3260b39b3052", size = 2307874, upload-time = "2026-10-07T09:16:01.748Z" },
+    { url = "https://files.pythonhosted.org/packages/a4/a8/95a81840efdfc49902cdfceb91e0972563489acda5e92d93bce7fdabea5d/shapely-2.2.0-cp311-cp311-musllinux_1_2_aarch64.whl", hash = "sha256:0edec813c81effaf4e20c18b1aa86827925ce27c0315621f2a1a080e22e0de5e", size = 3251822, upload-time = "2026-10-07T09:16:04.238Z" },
+    { url = "https://files.pythonhosted.org/packages/ab/f1/23aa57dd931a361d7a77512a32fbaedd2eb62ede201192c2ff391bf1d28a/shapely-2.2.0-cp311-cp311-musllinux_1_2_x86_64.whl", hash = "sha256:8d6ffe94710f37535a47161120cd5f7f0f0d9bb800c2fddebbd089cb7f1b3453", size = 3397542, upload-time = "2026-10-07T09:16:06.52Z" },
+    { url = "https://files.pythonhosted.org/packages/9a/8b/b812edc45ab4096d4dd3696e614fbe44207c916da16f26be3fe2305ed4e4/shapely-2.2.0-cp311-cp311-win32.whl", hash = "sha256:ce858295be3947143a3f44f145fa6dbacd5dcc5c4103801d42cd3be4a2034614", size = 1618880, upload-time = "2026-10-07T09:16:08.56Z" },
+    { url = "https://files.pythonhosted.org/packages/1f/bc/1b4246004806869c1d420c0a53e97244c9b538a7175e10f5e30012bbeab7/shapely-2.2.0-cp311-cp311-win_amd64.whl", hash = "sha256:806d399418b23eee7241736d572ad1e0b784782f9241d7c8e2cfceb00787831d", size = 1795293, upload-time = "2026-10-07T09:16:10.332Z" },
+    { url = "https://files.pythonhosted.org/packages/e7/8b/aa11e4f696fbcda4e06f1a49c95fabe82f28a93265d1b9d0cc2c596f03df/shapely-2.2.0-cp311-cp311-win_arm64.whl", hash = "sha256:5b740c9a197e5feb30bdc6e64a5eb3ca2a7324d11498844136dfc317daac6a99", size = 1880736, upload-time = "2026-10-07T09:16:11.949Z" },
 ]
 
 [[package]]

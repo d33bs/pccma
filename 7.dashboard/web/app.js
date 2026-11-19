@@ -167,6 +167,20 @@
             ctx.drawImage(layer, 0, 0);
           }
         }
+        // From 5b.segmentation_outlines: a traced, crop-relative nucleus boundary, already in
+        // this canvas's own pixel space (the canvas is sized to the crop's native resolution
+        // above), so no scaling is needed. Dark halo first for contrast on any background color.
+        const outline = descriptor.outline;
+        if (outline && Array.isArray(outline.x) && outline.x.length > 1 && outline.x.length === outline.y.length) {
+          ctx.globalCompositeOperation = 'source-over';
+          ctx.lineJoin = 'round';
+          ctx.beginPath();
+          ctx.moveTo(outline.x[0], outline.y[0]);
+          for (let index = 1; index < outline.x.length; index++) ctx.lineTo(outline.x[index], outline.y[index]);
+          ctx.closePath();
+          ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0, 0, 0, 0.85)'; ctx.stroke();
+          ctx.lineWidth = 1.3; ctx.strokeStyle = '#38e6ff'; ctx.stroke();
+        }
         mix.setAttribute('role', 'img');
         mix.setAttribute('aria-label', description);
         container.replaceChildren(mix);
@@ -318,7 +332,7 @@
     }
     function mixDescriptor(point, chosen) {
       if (!chosen.length) return { type: 'none' };
-      return { type: 'mix', layers: chosen.map(name => ({ path: point.images?.[name], color: CHANNEL_TINT[name] })) };
+      return { type: 'mix', layers: chosen.map(name => ({ path: point.images?.[name], color: CHANNEL_TINT[name] })), outline: point.nucleus_outline };
     }
     function channelLabel(chosen) {
       return chosen.length ? chosen.join(' + ') : 'No channel selected';

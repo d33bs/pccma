@@ -37,6 +37,10 @@ dependencies = [
     "pairwise-compare",
     # shared utilities of the repository (utils/), installed in editable mode from [tool.uv.sources]
     "pccma-atlas-utils",
+    "scikit-image==0.26.0",
+    "shapely==2.2.0",
+    "duckdb==1.5.6",
+    "geoarrow-pyarrow==0.3.0",
 ]
 
 [tool.uv.sources]

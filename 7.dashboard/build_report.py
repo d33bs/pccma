@@ -28,6 +28,12 @@ OBJECT_KEY = POSITION_KEY[:3] + [
 ]
 CHANNELS = ["composite", "DNA", "ER", "RNA", "AGP", "Mito"]
 PATH_COLUMNS = {ch: ch if ch == "composite" else f"grayscale_{ch}" for ch in CHANNELS}
+# From 5b.segmentation_outlines: crop-relative nucleus boundary, only (Cells boundaries are not
+# reliable at the current 224px nucleocentric crop size -- see that module's README).
+SEGMENTATION_STATUS_COLUMN = "Nuclei_Segmentation_Boundary_Status"
+SEGMENTATION_X_COLUMN = "Nuclei_Segmentation_Boundary_X"
+SEGMENTATION_Y_COLUMN = "Nuclei_Segmentation_Boundary_Y"
+SEGMENTATION_OK_STATUS = "ok"
 
 
 def require_table(frame, columns, label, *, unique=None):
@@ -54,11 +60,15 @@ def relative_crop_path(value):
     return path
 
 
-def prepare_data(umap, index, *, plate, run_id):
+def prepare_data(umap, index, *, plate, run_id, segmentation=None):
     """Join exact nucleus positions, then retain the index's complete object identity.
 
     The analysis table does not retain object numbers. Plate/well/site plus the
     unrounded nucleus X/Y is its available key; require uniqueness on both sides.
+    `segmentation` is optional: crop-relative nucleus-boundary rows from
+    5b.segmentation_outlines's segmentation_index.parquet (OBJECT_KEY + status/X/Y only),
+    already scoped to this plate. A cell with no matching row, or a non-"ok" status, simply
+    gets no outline -- this never removes a cell from the plotted set.
     """
     require_table(umap, ["Metadata_Plate"], "UMAP")
     require_table(index, ["Metadata_Plate"], "Crop index")
@@ -96,11 +106,23 @@ def prepare_data(umap, index, *, plate, run_id):
     for col in metadata:
         if not joined[col].eq(joined[col + "_index"]).all():
             raise ValueError(f"UMAP and crop metadata disagree: {col}")
+    if segmentation is not None:
+        segmentation_required = OBJECT_KEY + [SEGMENTATION_STATUS_COLUMN]
+        require_table(segmentation, segmentation_required, "Segmentation index", unique=OBJECT_KEY)
+        merge_columns = segmentation_required + [SEGMENTATION_X_COLUMN, SEGMENTATION_Y_COLUMN]
+        joined = joined.merge(segmentation[merge_columns], on=OBJECT_KEY, how="left",
+                              validate="one_to_one", indicator="_seg_merge")
+        if not joined["_seg_merge"].eq("both").all():
+            raise ValueError("Crop-index cell without a matching segmentation-index row")
     points = []
     for row in joined.to_dict("records"):
         identifier = (f"{plate}_{row['Metadata_Well']}_f{int(row['Metadata_Site']):02d}"
                       f"_nuc{int(row['Metadata_Nuclei_Number_Object_Number']):04d}"
                       f"_cell{int(row['Metadata_Cells_Number_Object_Number']):04d}")
+        nucleus_outline = None
+        if segmentation is not None and row[SEGMENTATION_STATUS_COLUMN] == SEGMENTATION_OK_STATUS:
+            x, y = row[SEGMENTATION_X_COLUMN], row[SEGMENTATION_Y_COLUMN]
+            nucleus_outline = {"x": [float(v) for v in x], "y": [float(v) for v in y]}
         points.append({
             "id": identifier, "line": row["Metadata_cell_line"], "group": row["cancer_group"],
             "tissue": row["tissue_site"], "well": row["Metadata_Well"],
@@ -111,6 +133,7 @@ def prepare_data(umap, index, *, plate, run_id):
             "x": row["umap_1"], "y": row["umap_2"],
             "cx": row[POSITION_KEY[3]], "cy": row[POSITION_KEY[4]],
             "images": {ch: "assets/" + quote(row[col], safe="/") for ch, col in PATH_COLUMNS.items()},
+            "nucleus_outline": nucleus_outline,
         })
     return {
         "schema_version": 1, "plate": plate, "run_id": run_id,
@@ -119,7 +142,8 @@ def prepare_data(umap, index, *, plate, run_id):
                     "cell_lines": selected.Metadata_cell_line.nunique(),
                     "cancer_groups": selected.cancer_group.nunique(),
                     "crop_size": int(crops.Metadata_Nucleocentric_Crop_Size.iloc[0]),
-                    "timepoints": sorted({int(value) for value in selected.Metadata_time_point})},
+                    "timepoints": sorted({int(value) for value in selected.Metadata_time_point}),
+                    "segmentation_cells": sum(1 for point in points if point["nucleus_outline"])},
         "sources": {"qc": "Inherited published post-QC membership; QC not recalculated."},
         "images": {"status": "bundled", "message": "Original warehouse JPEGs.", "channels": CHANNELS},
         "points": points,
@@ -250,7 +274,7 @@ def build_catalog(bundle, payload, assets):
 
 
 def build_report(*, umap_path, index_path, warehouse, output, plate, run_id,
-                 allow_missing_images=False, web_dir=None):
+                 allow_missing_images=False, web_dir=None, segmentation_index_path=None):
     """Build a new immutable static output with byte-identical, validated warehouse JPGs.
 
     A diagnostic coordinate-only build requires explicit opt-in and has no image
@@ -261,10 +285,24 @@ def build_report(*, umap_path, index_path, warehouse, output, plate, run_id,
     if output.exists() or output.is_symlink() or staging.exists():
         raise ValueError(f"Refusing to replace existing output/staging: {output}")
     umap_path, index_path = Path(umap_path), Path(index_path)
+    segmentation = None
+    if segmentation_index_path is not None:
+        segmentation_index_path = Path(segmentation_index_path)
+        # Explicit column selection: this file also carries a native GeoArrow geometry column
+        # (5b.segmentation_outlines) that this environment has no reason to decode, and reading
+        # it back through pyarrow in a process that has geoarrow.pyarrow loaded can hang at
+        # interpreter shutdown (see segmentation_outlines.py's CAUTION) -- not requesting the
+        # column at all sidesteps that regardless of whether this venv even has the package.
+        segmentation = pd.read_parquet(segmentation_index_path, columns=OBJECT_KEY + [
+            SEGMENTATION_STATUS_COLUMN, SEGMENTATION_X_COLUMN, SEGMENTATION_Y_COLUMN])
+        segmentation = segmentation.loc[segmentation.Metadata_Plate.eq(plate)]
     payload = prepare_data(pd.read_parquet(umap_path), pd.read_parquet(index_path),
-                           plate=plate, run_id=run_id)
+                           plate=plate, run_id=run_id, segmentation=segmentation)
     for label, path in [("umap", umap_path), ("crop_index", index_path)]:
         payload["sources"][label] = {"name": path.name, "sha256": sha256(path)}
+    if segmentation_index_path is not None:
+        payload["sources"]["segmentation_index"] = {
+            "name": segmentation_index_path.name, "sha256": sha256(segmentation_index_path)}
     warehouse = Path(warehouse) if warehouse is not None else None
     available = warehouse is not None and warehouse.is_dir()
     if not available and not allow_missing_images:
@@ -347,6 +385,8 @@ def main(argv=None):
     parser.add_argument("--umap", type=Path, default=root / "6.profile_analysis/results/3.single_cell_embedding/single_cell_umap_coordinates_by_cancer_group.parquet")
     parser.add_argument("--crop-index", type=Path, required=True)
     parser.add_argument("--warehouse", type=Path, help="Extracted warehouse root containing crops/ (read only)")
+    parser.add_argument("--segmentation-index", type=Path, dest="segmentation_index_path",
+                       help="5b.segmentation_outlines's segmentation_index.parquet (optional; adds nucleus outlines)")
     parser.add_argument("--plate", default="BR00150695")
     parser.add_argument("--run-id", required=True, help="Crop warehouse run identifier for provenance")
     parser.add_argument("--output", type=Path, required=True, help="New output directory; never overwritten")
@@ -357,7 +397,7 @@ def main(argv=None):
         payload = build_report(umap_path=args.umap, index_path=args.crop_index,
                                warehouse=args.warehouse, output=args.output, plate=args.plate,
                                run_id=args.run_id, allow_missing_images=args.allow_missing_images,
-                               web_dir=args.web_dir)
+                               web_dir=args.web_dir, segmentation_index_path=args.segmentation_index_path)
     except (ValueError, OSError, KeyError, TypeError, duckdb.Error) as error:
         parser.exit(1, f"Report build failed: {error}\n")
     print(json.dumps({"output": str(args.output.resolve()), "summary": payload["summary"],

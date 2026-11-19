@@ -55,11 +55,46 @@ def test_exact_join_scopes_plate_and_preserves_coordinates(tables):
     assert report["summary"]["umap_cells"] == 1
     assert report["summary"]["excluded_umap_rows"] == 1
     assert report["summary"]["timepoints"] == [24]
+    assert report["summary"]["segmentation_cells"] == 0
     point = report["points"][0]
     assert point["cx"] == 12.1234567890123
     assert point["id"] == "P1_C03_f01_nuc0003_cell0002"
     assert (point["x"], point["y"], point["line"], point["cluster"]) == (1.25, -2.5, "DAOY", 2)
     assert point["images"]["DNA"] == "assets/" + index.iloc[0].grayscale_DNA
+    assert point["nucleus_outline"] is None
+
+
+def test_segmentation_join_adds_nucleus_outline_only_for_ok_status(tables):
+    umap, index = tables
+    module = builder()
+    segmentation = pd.DataFrame([{
+        **{key: index.iloc[0][key] for key in module.OBJECT_KEY},
+        module.SEGMENTATION_STATUS_COLUMN: "ok",
+        module.SEGMENTATION_X_COLUMN: [10.0, 20.0, 20.0, 10.0, 10.0],
+        module.SEGMENTATION_Y_COLUMN: [10.0, 10.0, 20.0, 20.0, 10.0],
+    }])
+    report = module.prepare_data(umap, index, plate="P1", run_id="pilot", segmentation=segmentation)
+    assert report["summary"]["segmentation_cells"] == 1
+    outline = report["points"][0]["nucleus_outline"]
+    assert outline == {"x": [10.0, 20.0, 20.0, 10.0, 10.0], "y": [10.0, 10.0, 20.0, 20.0, 10.0]}
+
+    segmentation.loc[0, module.SEGMENTATION_STATUS_COLUMN] = "not_closed_at_center"
+    report = module.prepare_data(umap, index, plate="P1", run_id="pilot", segmentation=segmentation)
+    assert report["summary"]["segmentation_cells"] == 0
+    assert report["points"][0]["nucleus_outline"] is None
+
+
+def test_segmentation_join_requires_full_coverage_of_crop_index(tables):
+    umap, index = tables
+    module = builder()
+    segmentation = pd.DataFrame([{
+        **{key: index.iloc[0][key] for key in module.OBJECT_KEY},
+        module.SEGMENTATION_STATUS_COLUMN: "ok", module.SEGMENTATION_X_COLUMN: [0.0],
+        module.SEGMENTATION_Y_COLUMN: [0.0],
+    }])
+    segmentation.loc[0, "Metadata_Well"] = "C04"  # now matches no crop-index row
+    with pytest.raises(ValueError, match="segmentation-index row"):
+        module.prepare_data(umap, index, plate="P1", run_id="pilot", segmentation=segmentation)
 
 
 @pytest.mark.parametrize("problem", [

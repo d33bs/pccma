@@ -39,6 +39,10 @@ runinfo/
 5a.object_image_crops/data/
 5a.object_image_crops/logs/
 
+# Ignore the segmentation-outline warehouse (job manifests and the published index; see
+# 5b.segmentation_outlines/README.md)
+5b.segmentation_outlines/data/
+
 # Generated static dashboard bundles and local previews (includes selected warehouse JPGs)
 7.dashboard/dist/
 7.dashboard/previews/
